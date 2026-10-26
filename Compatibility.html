@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pet Adoption System - Compatibility Quiz</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .module-tabs { display:flex; flex-wrap:wrap; gap:12px; margin:0 0 28px; }
+        .module-tabs a { color:var(--primary-color); text-decoration:none; font-weight:700; padding:12px 19px; background:var(--bg-color); box-shadow:var(--neu-flat); border-radius:var(--radius); }
+        .module-tabs a.active { box-shadow:var(--neu-pressed); }
+        .compat-note { color:var(--text-muted); font-size:.92rem; margin:0 0 22px; }
+        .compat-message { min-height:25px; font-weight:700; margin:0 0 18px; }
+        .compat-message.error { color:#b91c1c; }
+        .compat-message.success { color:#15803d; }
+        .compat-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; }
+        .compat-grid .span-2 { grid-column:1/-1; }
+        /* Spacious, easy-to-read compatibility score cards */
+        .match-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:26px; margin:22px 0 34px; }
+        .match-card { min-width:0; padding:28px; border-radius:20px; background:var(--bg-color); box-shadow:var(--neu-flat); display:flex; flex-direction:column; gap:20px; }
+        .match-card.top-match { grid-column:1/-1; border:2px solid rgba(37,99,235,.2); }
+        .match-card-header { display:flex; align-items:flex-start; justify-content:space-between; gap:26px; flex-wrap:wrap; }
+        .match-name-area { flex:1 1 180px; min-width:0; }
+        .match-card h3 { color:var(--primary-color); margin:0 0 8px; font-size:1.3rem; line-height:1.3; overflow-wrap:anywhere; }
+        .match-top-label { display:inline-block; margin-bottom:9px; font-size:.75rem; font-weight:800; color:#1d4ed8; letter-spacing:.06em; text-transform:uppercase; }
+        .match-subtitle { margin:0; font-size:.91rem; color:var(--text-muted); font-weight:600; line-height:1.5; }
+        .match-score-area { flex:0 0 auto; text-align:right; min-width:125px; }
+        .match-score { display:block; font-size:2.5rem; line-height:1.05; font-weight:800; color:#15803d; font-variant-numeric:tabular-nums; white-space:nowrap; }
+        .match-score-label { display:block; margin-top:6px; font-size:.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.06em; }
+        .match-score-track { height:11px; border-radius:999px; background:rgba(148,163,184,.26); overflow:hidden; }
+        .match-score-fill { display:block; height:100%; width:0; border-radius:999px; background:linear-gradient(90deg,#60a5fa,#2563eb); transition:width .3s ease; }
+        .match-factors { padding:15px 18px; border-radius:14px; background:rgba(255,255,255,.48); color:var(--text-color); line-height:1.55; font-size:.92rem; overflow-wrap:anywhere; }
+        .match-factors strong { display:block; color:var(--primary-color); margin-bottom:5px; }
+        .match-more { font-size:.88rem; color:var(--text-muted); }
+        .match-more summary { color:var(--primary-color); font-weight:700; cursor:pointer; }
+        .match-more p { margin:10px 0 0; line-height:1.55; overflow-wrap:anywhere; }
+        .compat-scroll { overflow-x:auto; border-radius:20px; }
+        .compat-scroll table { min-width:1020px; }
+        .compat-scroll table th, .compat-scroll table td { padding:15px 17px; }
+        .compat-scroll table th:nth-child(5), .compat-scroll table td:nth-child(5) { white-space:nowrap; min-width:105px; font-variant-numeric:tabular-nums; }
+        .compat-scroll table th:nth-child(6), .compat-scroll table td:nth-child(6) { min-width:265px; line-height:1.5; }
+        button:disabled { opacity:.6; cursor:not-allowed; transform:none; }
+        [hidden] { display:none!important; }
+        @media(max-width:1000px) { .match-list { grid-template-columns:1fr; } .match-card.top-match { grid-column:auto; } }
+        @media(max-width:900px) { .compat-grid { grid-template-columns:1fr; } .compat-grid .span-2 { grid-column:auto; } }
+        @media(max-width:480px) { .match-card { padding:20px; gap:15px; } .match-card-header { gap:14px; } .match-score { font-size:2.15rem; } }
+    </style>
+</head>
+<body>
+    <aside>
+        <h2>Pet Portal</h2>
+        <a href="index.html">Dashboard</a>
+        <a href="adopters.html" class="active">Adopters &amp; Adoptions</a>
+        <a href="pets.html">Available Pets</a>
+        <a href="petprofile.html">QR Pet Profile</a>
+        <a href="health.html">Health Records</a>
+        <div class="nav-spacer"></div>
+        <a href="login.html" class="logout-btn">Log Out</a>
+    </aside>
+
+    <main>
+        <header>
+            <div>
+                <h1>Compatibility Quiz &amp; Results</h1>
+                <p>Adopters &amp; Adoptions / Pet Matching</p>
+            </div>
+        </header>
+
+        <nav class="module-tabs" aria-label="Adoption Management sections">
+            <a href="adopters.html">Adopter Profiles</a>
+            <a href="compatibility.html" class="active" aria-current="page">Compatibility Quiz &amp; Results</a>
+        </nav>
+
+        <p id="message" class="compat-message" role="status" aria-live="polite"></p>
+
+        <section class="form-card">
+            <h3 class="form-card-title">Pet Compatibility Questionnaire</h3>
+            <p class="compat-note">Choose an active adopter and answer the questions. This is a simple rule-based recommendation, not a guarantee of pet suitability. Only available, not-yet-adopted pets are considered.</p>
+            <form id="quiz-form">
+                <div class="compat-grid">
+                    <div class="form-group span-2">
+                        <label for="adopter_id">Registered Adopter</label>
+                        <div class="select-wrapper"><select id="adopter_id" required><option value="">Loading adopters...</option></select></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="species">1. Preferred Pet</label>
+                        <div class="select-wrapper">
+                            <select id="species" required>
+                                <option value="Any">Any Species</option>
+                                <option value="Dog">Dog</option>
+                                <option value="Cat">Cat</option>
+                                <option value="Rabbit">Rabbit</option>
+                                <option value="Hamster">Hamster</option>
+                                <option value="Bird">Bird</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="activity">2. Preferred Activity Level</label>
+                        <div class="select-wrapper">
+                            <select id="activity" required>
+                                <option value="">Select activity level</option>
+                                <option value="Calm">Calm / Relaxed</option>
+                                <option value="Balanced">Balanced</option>
+                                <option value="Active">Active / Playful</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="home">3. Home Environment</label>
+                        <div class="select-wrapper">
+                            <select id="home" required>
+                                <option value="">Select home environment</option>
+                                <option value="Quiet">Quiet Home</option>
+                                <option value="Active">Busy / Active Home</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="children">4. Children in the Household?</label>
+                        <div class="select-wrapper">
+                            <select id="children" required>
+                                <option value="">Select an answer</option>
+                                <option value="Yes">Yes</option>
+                                <option value="No">No</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="experience">5. Pet Care Experience</label>
+                        <div class="select-wrapper">
+                            <select id="experience" required>
+                                <option value="">Select experience</option>
+                                <option value="First-time">First-time Pet Owner</option>
+                                <option value="Experienced">Experienced Pet Owner</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary btn-block" id="match-button" disabled>Find My Pet Match</button>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <section id="results-section" hidden>
+            <h2>Recommended Pets</h2>
+            <p class="compat-note">The top match is automatically saved in MySQL. Scores are indicative and based on available pet profile descriptions.</p>
+            <div class="match-list" id="match-list"></div>
+        </section>
+
+        <h2>Saved Compatibility Results</h2>
+        <p class="compat-note">Select an adopter in the quiz to view their previous matches, or choose the blank option to see the latest results.</p>
+        <div class="compat-scroll">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Result ID</th>
+                        <th>Adopter</th>
+                        <th>Recommended Pet</th>
+                        <th>Species</th>
+                        <th>Score</th>
+                        <th>Matching Factors</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body"><tr><td colspan="7">Loading results...</td></tr></tbody>
+            </table>
+        </div>
+        <div class="table-actions"><button type="button" class="btn" id="refresh-history">🔄 Refresh Results</button></div>
+    </main>
+
+    <script>
+        const API = 'compatibility_api.php';
+        const form = document.getElementById('quiz-form');
+        const adopterSelect = document.getElementById('adopter_id');
+        const matchButton = document.getElementById('match-button');
+        const message = document.getElementById('message');
+        const resultsSection = document.getElementById('results-section');
+        const matchList = document.getElementById('match-list');
+        const historyBody = document.getElementById('history-body');
+
+        function notify(text, error = false) {
+            message.textContent = text;
+            message.className = 'compat-message ' + (error ? 'error' : 'success');
+        }
+        async function request(action, data = null, params = '') {
+            const options = data === null
+                ? { method: 'GET', cache: 'no-store' }
+                : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) };
+            const response = await fetch(`${API}?action=${encodeURIComponent(action)}${params}`, options);
+            const raw = await response.text();
+            let result;
+            try { result = JSON.parse(raw); }
+            catch { throw new Error('Invalid API response. Check compatibility_api.php and database.php.'); }
+            if (!response.ok || result.success !== true) throw new Error(result.message || 'Request failed.');
+            return result;
+        }
+        function cell(value) {
+            const td = document.createElement('td');
+            td.textContent = value == null ? '' : String(value);
+            return td;
+        }
+        function textElement(tag, value, className = '') {
+            const el = document.createElement(tag);
+            el.textContent = value == null ? '' : String(value);
+            if (className) el.className = className;
+            return el;
+        }
+        function showHistoryMessage(text) {
+            historyBody.replaceChildren();
+            const tr = document.createElement('tr');
+            const td = cell(text);
+            td.colSpan = 7;
+            tr.appendChild(td);
+            historyBody.appendChild(tr);
+        }
+        async function loadOptions() {
+            try {
+                const result = await request('options');
+                adopterSelect.replaceChildren(new Option('Select an active adopter', ''));
+                for (const a of result.adopters || []) {
+                    adopterSelect.add(new Option(`${a.FirstName} ${a.LastName} (ID: ${a.AdopterID})`, a.AdopterID));
+                }
+                matchButton.disabled = (result.adopters || []).length === 0 || result.available_pets === 0;
+                if (result.available_pets === 0) notify('No pets are currently available for matching.', true);
+            } catch (error) {
+                adopterSelect.replaceChildren(new Option('Could not load adopters', ''));
+                matchButton.disabled = true;
+                notify(error.message, true);
+            }
+        }
+        async function loadHistory() {
+            showHistoryMessage('Loading compatibility results...');
+            try {
+                const id = adopterSelect.value;
+                const query = id ? '&adopter_id=' + encodeURIComponent(id) : '';
+                const result = await request('history', null, query);
+                historyBody.replaceChildren();
+                if (!Array.isArray(result.history) || result.history.length === 0) {
+                    showHistoryMessage('No saved compatibility results yet.');
+                    return;
+                }
+                for (const r of result.history) {
+                    const row = document.createElement('tr');
+                    for (const value of [r.CompatibilityID, `${r.FirstName} ${r.LastName}`,
+                        r.PetName, r.Species, `${Math.round(Number(r.CompatibilityScore))}%`,
+                        r.MatchingFactors, r.RecommendationDate]) row.appendChild(cell(value));
+                    historyBody.appendChild(row);
+                }
+            } catch (error) {
+                showHistoryMessage(error.message);
+            }
+        }
+        function displayMatches(matches) {
+            matchList.replaceChildren();
+            resultsSection.hidden = false;
+            if (!matches.length) {
+                matchList.appendChild(textElement('p', 'No eligible pets matched the selected species. Try Any Species.'));
+                return;
+            }
+
+            matches.forEach((pet, index) => {
+                const card = document.createElement('article');
+                card.className = 'match-card' + (index === 0 ? ' top-match' : '');
+
+                const header = document.createElement('div');
+                header.className = 'match-card-header';
+
+                const nameArea = document.createElement('div');
+                nameArea.className = 'match-name-area';
+                if (index === 0) {
+                    nameArea.appendChild(textElement('span', 'Top recommendation', 'match-top-label'));
+                }
+                nameArea.appendChild(textElement('h3', pet.PetName));
+                nameArea.appendChild(textElement('p',
+                    `${pet.Species} · ${pet.Breed || 'Breed not specified'} · Age ${pet.Age ?? 'Unknown'}`,
+                    'match-subtitle'));
+
+                const scoreArea = document.createElement('div');
+                scoreArea.className = 'match-score-area';
+                const numericScore = Number(pet.CompatibilityScore);
+                const score = Number.isFinite(numericScore) ? Math.max(0, Math.min(100, numericScore)) : 0;
+                scoreArea.appendChild(textElement('span', `${Math.round(score)}%`, 'match-score'));
+                scoreArea.appendChild(textElement('span', 'Match score', 'match-score-label'));
+                header.append(nameArea, scoreArea);
+                card.appendChild(header);
+
+                const track = document.createElement('div');
+                track.className = 'match-score-track';
+                track.setAttribute('role', 'progressbar');
+                track.setAttribute('aria-label', `${pet.PetName} compatibility`);
+                track.setAttribute('aria-valuenow', String(Math.round(score)));
+                track.setAttribute('aria-valuemin', '0');
+                track.setAttribute('aria-valuemax', '100');
+                const fill = document.createElement('span');
+                fill.className = 'match-score-fill';
+                fill.style.width = score + '%';
+                track.appendChild(fill);
+                card.appendChild(track);
+
+                const factors = document.createElement('div');
+                factors.className = 'match-factors';
+                factors.appendChild(textElement('strong', 'Why this pet matches'));
+                factors.appendChild(textElement('span', pet.MatchingFactors || 'Based on your quiz answers'));
+                card.appendChild(factors);
+
+                const more = document.createElement('details');
+                more.className = 'match-more';
+                more.appendChild(textElement('summary', 'View pet details'));
+                more.appendChild(textElement('p', `Activity: ${pet.ActivityProfile || 'Not specified'}`));
+                if (pet.Personality) more.appendChild(textElement('p', `Personality: ${pet.Personality}`));
+                if (pet.Behavior) more.appendChild(textElement('p', `Behavior: ${pet.Behavior}`));
+                card.appendChild(more);
+                matchList.appendChild(card);
+            });
+        }
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            if (!form.reportValidity()) return;
+            const input = {
+                adopter_id: Number(adopterSelect.value),
+                species: document.getElementById('species').value,
+                activity: document.getElementById('activity').value,
+                home: document.getElementById('home').value,
+                children: document.getElementById('children').value,
+                experience: document.getElementById('experience').value
+            };
+            matchButton.disabled = true;
+            matchButton.textContent = 'Finding matches...';
+            try {
+                const result = await request('match', input);
+                displayMatches(result.matches || []);
+                notify(result.message);
+                await loadHistory();
+                resultsSection.scrollIntoView({behavior: 'smooth', block: 'start'});
+            } catch (error) {
+                notify(error.message, true);
+            } finally {
+                matchButton.disabled = false;
+                matchButton.textContent = 'Find My Pet Match';
+            }
+        });
+        adopterSelect.addEventListener('change', loadHistory);
+        document.getElementById('refresh-history').addEventListener('click', loadHistory);
+        (async () => { await loadOptions(); await loadHistory(); })();
+    </script>
+</body>
+</html>
