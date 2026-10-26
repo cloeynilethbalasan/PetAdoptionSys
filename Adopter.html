@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pet Adoption System - Adopters & Adoptions</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .adopter-toolbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; margin:10px 0 20px; }
+        .adopter-toolbar input { max-width:360px; }
+        .table-scroll { overflow-x:auto; border-radius:20px; }
+        .table-scroll .data-table { min-width:920px; }
+        .inline-actions { display:flex; gap:8px; flex-wrap:wrap; }
+        .inline-actions .btn { padding:8px 14px; }
+        .notice { margin:0 0 20px; font-weight:600; min-height:24px; }
+        .notice.error { color:#b91c1c; }
+        .notice.success { color:#15803d; }
+        .button-row { display:flex; gap:12px; align-items:center; }
+        button:disabled { opacity:0.55; cursor:not-allowed; transform:none; }
+        [hidden] { display: none !important; }
+        @media (max-width:900px) { .button-row { flex-wrap:wrap; } }
+    </style>
+</head>
+
+<body>
+    <aside>
+        <h2>Pet Portal</h2>
+        <a href="index.html">Dashboard</a>
+        <a href="adopters.html" class="active">Adopters &amp; Adoptions</a>
+        <a href="pets.html">Available Pets</a>
+        <a href="pet_profile.html">QR Pet Profile</a>
+        <a href="health.html">Health Records</a>
+        <div class="nav-spacer"></div>
+        <a href="login.html" class="logout-btn">Log Out</a>
+    </aside>
+
+    <main>
+        <header>
+            <div>
+                <h1>Adoption Management</h1>
+                <p>Logged in as: <span id="user-role">Admin</span></p>
+            </div>
+        </header>
+        
+<div class="module-tabs">
+    <a href="adopters.html" class="module-tab active">
+        Adopter Profiles
+    </a>
+
+    <a href="compatibility.html" class="module-tab">
+        Compatibility Quiz & Results
+    </a>
+</div>
+
+
+        <p class="notice" id="notice" role="status" aria-live="polite"></p>
+
+        <section class="form-card">
+            <h3 class="form-card-title" id="form-title">Add New Adopter</h3>
+            <form id="adopter-form">
+                <input type="hidden" id="adopter_id" name="adopter_id">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="first_name">First Name:</label>
+                        <input type="text" id="first_name" name="first_name" maxlength="50" placeholder="First Name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="last_name">Last Name:</label>
+                        <input type="text" id="last_name" name="last_name" maxlength="50" placeholder="Last Name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="contact_no">Contact No:</label>
+                        <input type="text" id="contact_no" name="contact_no" maxlength="20" placeholder="0917XXXXXXX" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email" maxlength="100" placeholder="email@example.com" required>
+                    </div>
+                    <div class="form-group span-2">
+                        <label for="address">Address:</label>
+                        <input type="text" id="address" name="address" maxlength="255" placeholder="City / Province" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="status">Status:</label>
+                        <div class="select-wrapper">
+                            <select id="status" name="status">
+                                <option value="Active">Active</option>
+                                <option value="Pending">Pending</option>
+                                <option value="Inactive">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <div class="button-row">
+                            <button type="submit" class="btn btn-primary btn-block" id="save-button">Add Adopter</button>
+                            <button type="button" class="btn" id="cancel-edit" hidden>Cancel Edit</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </section>
+
+        <h2>Registered Adopters</h2>
+        <div class="adopter-toolbar">
+            <input type="text" id="search-adopters" aria-label="Search adopters" placeholder="Search by ID, name, email, or contact">
+            <span id="adopter-count">Loading...</span>
+        </div>
+        <div class="table-scroll">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="select-all" aria-label="Select all visible adopters"></th>
+                        <th>Adopter ID</th>
+                        <th>First Name</th>
+                        <th>Last Name</th>
+                        <th>Contact</th>
+                        <th>Email</th>
+                        <th>Address</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="adopters-body"><tr><td colspan="9">Loading adopters...</td></tr></tbody>
+            </table>
+        </div>
+        <div class="table-actions">
+            <button type="button" class="btn" id="refresh-btn">🔄 Refresh</button>
+            <button type="button" class="btn btn-danger" id="delete-selected">🗑️ Delete Selected</button>
+        </div>
+    </main>
+
+    <script>
+        const API = 'adopters_api.php';
+        const form = document.getElementById('adopter-form');
+        const tableBody = document.getElementById('adopters-body');
+        const notice = document.getElementById('notice');
+        const search = document.getElementById('search-adopters');
+        const selectAll = document.getElementById('select-all');
+        const count = document.getElementById('adopter-count');
+        const saveButton = document.getElementById('save-button');
+        const cancelEditButton = document.getElementById('cancel-edit');
+        let adopters = [];
+        let selectedIds = new Set();
+
+        function alertMessage(message, isError = false) {
+            notice.textContent = message;
+            notice.className = 'notice ' + (isError ? 'error' : 'success');
+        }
+
+        async function request(action, data = null) {
+            const options = data === null
+                ? { method: 'GET', cache: 'no-store' }
+                : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) };
+            const response = await fetch(`${API}?action=${encodeURIComponent(action)}`, options);
+            const body = await response.text();
+            let result;
+            try { result = JSON.parse(body); }
+            catch { throw new Error('Invalid API response. Check adopters_api.php and database.php.'); }
+            if (!response.ok || result.success !== true) {
+                throw new Error(result.message || 'Request failed.');
+            }
+            return result;
+        }
+
+        function td(value) {
+            const cell = document.createElement('td');
+            cell.textContent = value == null ? '' : String(value);
+            return cell;
+        }
+
+        function resetEditor() {
+            form.reset();
+            document.getElementById('adopter_id').value = '';
+            document.getElementById('form-title').textContent = 'Add New Adopter';
+            saveButton.textContent = 'Add Adopter';
+            cancelEditButton.hidden = true;
+        }
+
+        function editAdopter(a) {
+            document.getElementById('adopter_id').value = a.AdopterID;
+            document.getElementById('first_name').value = a.FirstName || '';
+            document.getElementById('last_name').value = a.LastName || '';
+            document.getElementById('contact_no').value = a.ContactNo || '';
+            document.getElementById('email').value = a.Email || '';
+            document.getElementById('address').value = a.Address || '';
+            document.getElementById('status').value = a.Status || 'Active';
+            document.getElementById('form-title').textContent = `Edit Adopter #${a.AdopterID}`;
+            saveButton.textContent = 'Save Changes';
+            cancelEditButton.hidden = false;
+            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            document.getElementById('first_name').focus({ preventScroll: true });
+        }
+
+        function filteredAdopters() {
+            const q = search.value.toLowerCase().trim();
+            return adopters.filter(a => [a.AdopterID, a.FirstName, a.LastName,
+                a.ContactNo, a.Email, a.Address, a.Status].join(' ').toLowerCase().includes(q));
+        }
+
+        function render() {
+            tableBody.replaceChildren();
+            const visible = filteredAdopters();
+            count.textContent = `${visible.length} shown · ${adopters.length} total`;
+            if (visible.length === 0) {
+                const row = document.createElement('tr');
+                const cell = td('No adopters found.');
+                cell.colSpan = 9;
+                row.appendChild(cell);
+                tableBody.appendChild(row);
+            }
+            visible.forEach(a => {
+                const row = document.createElement('tr');
+                const checkCell = document.createElement('td');
+                const check = document.createElement('input');
+                check.type = 'checkbox';
+                check.value = a.AdopterID;
+                check.checked = selectedIds.has(Number(a.AdopterID));
+                check.setAttribute('aria-label', `Select adopter ${a.AdopterID}`);
+                check.addEventListener('change', () => {
+                    const id = Number(a.AdopterID);
+                    if (check.checked) selectedIds.add(id);
+                    else selectedIds.delete(id);
+                    syncSelectAll();
+                });
+                checkCell.appendChild(check);
+                row.appendChild(checkCell);
+                [a.AdopterID, a.FirstName, a.LastName, a.ContactNo, a.Email, a.Address].forEach(v => row.appendChild(td(v)));
+                const statusCell = document.createElement('td');
+                const badge = document.createElement('span');
+                badge.className = 'badge ' + (a.Status === 'Active' ? 'badge-success' : a.Status === 'Pending' ? 'badge-warning' : 'badge-danger');
+                badge.textContent = a.Status || '';
+                statusCell.appendChild(badge);
+                row.appendChild(statusCell);
+                const actions = document.createElement('td');
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'btn';
+                button.textContent = 'Edit';
+                button.addEventListener('click', () => editAdopter(a));
+                actions.appendChild(button);
+                row.appendChild(actions);
+                tableBody.appendChild(row);
+            });
+            syncSelectAll();
+        }
+
+        function syncSelectAll() {
+            const ids = filteredAdopters().map(a => Number(a.AdopterID));
+            selectAll.checked = ids.length > 0 && ids.every(id => selectedIds.has(id));
+            selectAll.indeterminate = ids.some(id => selectedIds.has(id)) && !selectAll.checked;
+        }
+
+        async function loadAdopters() {
+            try {
+                const result = await request('list');
+                if (!Array.isArray(result.adopters)) throw new Error('Adopter list format is invalid.');
+                adopters = result.adopters;
+                const live = new Set(adopters.map(a => Number(a.AdopterID)));
+                selectedIds = new Set([...selectedIds].filter(id => live.has(id)));
+                render();
+            } catch (error) {
+                alertMessage(error.message, true);
+                tableBody.replaceChildren();
+                const row = document.createElement('tr');
+                const cell = td('Could not load adopters.');
+                cell.colSpan = 9;
+                row.appendChild(cell);
+                tableBody.appendChild(row);
+            }
+        }
+
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            const id = document.getElementById('adopter_id').value;
+            const data = Object.fromEntries(new FormData(form).entries());
+            if (!id) delete data.adopter_id;
+            saveButton.disabled = true;
+            try {
+                const result = await request(id ? 'update' : 'add', data);
+                resetEditor();
+                await loadAdopters();
+                alertMessage(result.message);
+            } catch (error) { alertMessage(error.message, true); }
+            finally { saveButton.disabled = false; }
+        });
+
+        cancelEditButton.addEventListener('click', resetEditor);
+        search.addEventListener('input', render);
+        selectAll.addEventListener('change', () => {
+            for (const a of filteredAdopters()) {
+                const id = Number(a.AdopterID);
+                if (selectAll.checked) selectedIds.add(id);
+                else selectedIds.delete(id);
+            }
+            render();
+        });
+        document.getElementById('refresh-btn').addEventListener('click', async () => {
+            await loadAdopters();
+        });
+        document.getElementById('delete-selected').addEventListener('click', async () => {
+            if (!selectedIds.size) { alertMessage('Select an adopter first.', true); return; }
+            if (!confirm(`Permanently delete ${selectedIds.size} selected adopter(s)? This cannot be undone.`)) return;
+            try {
+                const result = await request('delete', { ids: [...selectedIds] });
+                selectedIds.clear();
+                await loadAdopters();
+                alertMessage(result.message);
+            } catch (error) { alertMessage(error.message, true); }
+        });
+        loadAdopters();
+    </script>
+</body>
+</html>
